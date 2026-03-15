@@ -21,7 +21,7 @@ class Loss:
         n = y_true.shape[0]
         epsilon = 1e-15
         y_pred = np.clip(y_pred, epsilon, 1 - epsilon)
-        return -(1/n) * ((y_pred - y_true) / (y_pred * (1 - y_pred))) # 
+        return (1/n) * ((y_pred - y_true) / (y_pred * (1 - y_pred))) # 
 
     @staticmethod
     def cce(y_true, y_pred):
