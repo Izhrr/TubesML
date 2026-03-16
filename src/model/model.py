@@ -4,6 +4,7 @@ from .activation import Activations
 from .loss import Loss
 from .regularizer import Regularizer
 from .initializer import Initializer
+from tqdm.auto import tqdm
 
 import pickle
 
@@ -112,66 +113,122 @@ class FFNN:
             layer.W -= learning_rate * (layer.dW + reg_penalty)
             layer.b -= learning_rate * layer.db
 
-    def fit(self, X_train, y_train, X_val, y_val, epochs, batch_size, learning_rate, verbose=1):
+
+
+    def fit(self, X_train, y_train, X_val, y_val, epochs, batch_size=1, learning_rate=0.01, verbose=1):
         n_samples = X_train.shape[0]
-        
-        for epoch in range(epochs):
-            # 1. Shuffle data untuk setiap epoch agar model tidak belajar urutan
+
+        epoch_iterator = range(epochs)
+        if verbose == 1:
+            epoch_iterator = tqdm(epoch_iterator, total=epochs, desc="Training", unit="epoch")
+
+        for epoch in epoch_iterator:
             indices = np.arange(n_samples)
             np.random.shuffle(indices)
             X_train = X_train[indices]
             y_train = y_train[indices]
-            
-            # 2. Mini-batch processing
+
             for i in range(0, n_samples, batch_size):
                 X_batch = X_train[i:i + batch_size]
                 y_batch = y_train[i:i + batch_size]
-                
-                # Forward pass
+
                 y_pred_batch = self.forward(X_batch)
-                
-                # Backward pass & Gradien
                 self.backward(y_batch, y_pred_batch)
-                
-                # Perbarui bobot
                 self.update_weights(learning_rate)
-            
-            # 3. Hitung Loss untuk History
+
             train_pred = self.forward(X_train)
             val_pred = self.forward(X_val)
-            
+
             loss_func = getattr(Loss, self.loss_name)
             train_loss = loss_func(y_train, train_pred)
             val_loss = loss_func(y_val, val_pred)
-            
+
             self.history['train_loss'].append(train_loss)
             self.history['val_loss'].append(val_loss)
+
+            if verbose == 1:
+                epoch_iterator.set_postfix(
+                    train_loss=f"{train_loss:.4f}",
+                    val_loss=f"{val_loss:.4f}"
+                )
             
             # 4. Verbose output
             if verbose == 1:
                 print(f"Epoch {epoch+1}/{epochs} - loss: {train_loss:.4f} - val_loss: {val_loss:.4f}")
 
     def plot_weights_distribution(self, layer_indices):
-        """Menampilkan plot distribusi bobot untuk layer tertentu"""
+        """Plot distribusi bobot+bias: 1 grafik gabungan dan 1 grafik per layer."""
+        if not layer_indices:
+            raise ValueError("layer_indices tidak boleh kosong.")
+
+        # Grafik gabungan
+        plt.figure(figsize=(10, 6))
         for idx in layer_indices:
-            weights = self.layers[idx].W.flatten()
-            plt.hist(weights, bins=30, alpha=0.7, label=f'Layer {idx}')
-        plt.title("Distribusi Bobot")
-        plt.xlabel("Nilai Bobot")
+            if idx < 0 or idx >= len(self.layers):
+                raise IndexError(f"Layer index {idx} di luar range.")
+            layer = self.layers[idx]
+            if layer.W is None or layer.b is None:
+                raise ValueError(f"Bobot/bias pada layer {idx} belum diinisialisasi.")
+
+            params = np.concatenate([layer.W.flatten(), layer.b.flatten()])
+            plt.hist(params, bins=30, alpha=0.5, label=f'Layer {idx}')
+
+        plt.title("Distribusi Bobot dan Bias (Gabungan)")
+        plt.xlabel("Nilai")
         plt.ylabel("Frekuensi")
         plt.legend()
+        plt.tight_layout()
         plt.show()
 
-    def plot_gradients_distribution(self, layer_indices):
-        """Menampilkan plot distribusi gradien untuk layer tertentu"""
+        # Grafik terpisah per layer
         for idx in layer_indices:
-            gradients = self.layers[idx].dW.flatten()
-            plt.hist(gradients, bins=30, alpha=0.7, label=f'Layer {idx}')
-        plt.title("Distribusi Gradien")
-        plt.xlabel("Nilai Gradien")
+            layer = self.layers[idx]
+            params = np.concatenate([layer.W.flatten(), layer.b.flatten()])
+
+            plt.figure(figsize=(8, 5))
+            plt.hist(params, bins=30, alpha=0.7, color='steelblue')
+            plt.title(f"Distribusi Bobot dan Bias - Layer {idx}")
+            plt.xlabel("Nilai")
+            plt.ylabel("Frekuensi")
+            plt.tight_layout()
+            plt.show()
+
+    def plot_gradients_distribution(self, layer_indices):
+        """Plot distribusi gradien bobot+bias: 1 grafik gabungan dan 1 grafik per layer."""
+        if not layer_indices:
+            raise ValueError("layer_indices tidak boleh kosong.")
+
+        # Grafik gabungan
+        plt.figure(figsize=(10, 6))
+        for idx in layer_indices:
+            if idx < 0 or idx >= len(self.layers):
+                raise IndexError(f"Layer index {idx} di luar range.")
+            layer = self.layers[idx]
+            if layer.dW is None or layer.db is None:
+                raise ValueError(f"Gradien pada layer {idx} belum tersedia. Jalankan backward() dulu.")
+
+            grads = np.concatenate([layer.dW.flatten(), layer.db.flatten()])
+            plt.hist(grads, bins=30, alpha=0.5, label=f'Layer {idx}')
+
+        plt.title("Distribusi Gradien Bobot dan Bias (Gabungan)")
+        plt.xlabel("Nilai")
         plt.ylabel("Frekuensi")
         plt.legend()
+        plt.tight_layout()
         plt.show()
+
+        # Grafik terpisah per layer
+        for idx in layer_indices:
+            layer = self.layers[idx]
+            grads = np.concatenate([layer.dW.flatten(), layer.db.flatten()])
+
+            plt.figure(figsize=(8, 5))
+            plt.hist(grads, bins=30, alpha=0.7, color='darkorange')
+            plt.title(f"Distribusi Gradien Bobot dan Bias - Layer {idx}")
+            plt.xlabel("Nilai")
+            plt.ylabel("Frekuensi")
+            plt.tight_layout()
+            plt.show()
 
     def save(self, filename):
         """Menyimpan instance model ke file"""
