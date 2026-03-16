@@ -9,10 +9,11 @@ from tqdm.auto import tqdm
 import pickle
 
 class Layer:
-    def __init__(self, n_input, n_output, activation_name):
+    def __init__(self, n_input, n_output, activation_name, use_rmsnorm=False):
         self.n_input = n_input
         self.n_output = n_output
         self.activation_name = activation_name.lower()
+        self.use_rmsnorm = use_rmsnorm
 
         # Inisialisasi placeholder untuk bobot dan bias 
         self.W = None 
@@ -22,30 +23,48 @@ class Layer:
         self.dW = None
         self.db = None
         
+        if self.use_rmsnorm:
+            self.gamma = None
+            self.dgamma = None
+            
         # Cache untuk menyimpan nilai selama forward pass
         self.input_cache = None
         self.net_cache = None
         self.output_cache = None
+        
+        if self.use_rmsnorm:
+            self.rms = None
+            self.norm_cache = None
+            self.scaled_cache = None
 
     def forward(self, x):
-        """Hitung output = f(Wx + b)"""
+        """Hitung output = f(Wx + b) atau f(RMSNorm(Wx + b))"""
         self.input_cache = x
         
         # Linear transformation: net = Wx + b
         self.net_cache = np.dot(x, self.W) + self.b
         
-        # Activation: o = f(net)
         activation_func = getattr(Activations, self.activation_name)
-        self.output_cache = activation_func(self.net_cache)
+        
+        if self.use_rmsnorm:
+            # Hitung RMSNorm
+            self.rms = np.sqrt(np.mean(self.net_cache**2, axis=-1, keepdims=True) + 1e-8)
+            self.norm_cache = self.net_cache / self.rms
+            self.scaled_cache = self.gamma * self.norm_cache
+            self.output_cache = activation_func(self.scaled_cache)
+        else:
+            self.output_cache = activation_func(self.net_cache)
         
         return self.output_cache
     
 class FFNN:
-    def __init__(self, loss_name, regularization_type=None, lam=0):
+    def __init__(self, loss_name, regularization_type=None, lam=0, optimizer='sgd'):
         self.layers = []
         self.loss_name = loss_name.lower()
         self.regularization_type = regularization_type # 'l1', 'l2', None
         self.lam = lam
+        self.optimizer = optimizer.lower()
+        self.t = 0
         self.history = {'train_loss': [], 'val_loss': []}
 
     def add_layer(self, layer):
@@ -72,20 +91,29 @@ class FFNN:
         for i in reversed(range(len(self.layers))):
             layer = self.layers[i]
             
+            # Hitung input ke fungsi aktivasi
+            pre_activation = layer.scaled_cache if layer.use_rmsnorm else layer.net_cache
+            
             # dO/dNet (Turunan Aktivasi)
             activation_deriv_func = getattr(Activations, f"{layer.activation_name}_derivative")
-            da_dnet = activation_deriv_func(layer.net_cache)
+            da_dnet = activation_deriv_func(pre_activation)
             
             # Hitung Delta (Error Term)
-            # Untuk output layer: delta = (dE/do) * (do/dnet)
-            # Untuk hidden layer: delta = (sum delta_next * W_next) * (do/dnet)
             if i == len(self.layers) - 1:
                 # Output Layer case
-                delta = error_signal * da_dnet
+                delta_forward = error_signal * da_dnet
             else:
                 # Hidden Layer case: delta dari layer depannya
                 next_layer = self.layers[i+1]
-                delta = np.dot(delta_next, next_layer.W.T) * da_dnet
+                delta_forward = np.dot(delta_next, next_layer.W.T) * da_dnet
+
+            if layer.use_rmsnorm:
+                # Backpropagate melalui RMSNorm
+                layer.dgamma = np.sum(delta_forward * layer.norm_cache, axis=0, keepdims=True)
+                dnorm = delta_forward * layer.gamma
+                delta = (1.0 / layer.rms) * (dnorm - layer.norm_cache * np.mean(dnorm * layer.norm_cache, axis=-1, keepdims=True))
+            else:
+                delta = delta_forward
             
             # 2. Hitung gradien Bobot (dW) dan Bias (db)
 
@@ -100,8 +128,10 @@ class FFNN:
 
     def update_weights(self, learning_rate):
         """
-        Memperbarui W dan b menggunakan Gradient Descent standar.
+        Memperbarui W dan b menggunakan Gradient Descent standar atau Adam.
         """
+        self.t += 1
+        
         for layer in self.layers:
             reg_penalty = 0
             if self.regularization_type == 'l1':
@@ -109,9 +139,50 @@ class FFNN:
             elif self.regularization_type == 'l2':
                 reg_penalty = Regularizer.l2_derivative(layer.W, self.lam)
             
-            # Update: W_new = W_old - alpha * (dW + penalty)
-            layer.W -= learning_rate * (layer.dW + reg_penalty)
-            layer.b -= learning_rate * layer.db
+            grad_W = layer.dW + reg_penalty
+            grad_b = layer.db
+            
+            if self.optimizer == 'adam':
+                beta1 = 0.9
+                beta2 = 0.999
+                epsilon = 1e-8
+                
+                if not hasattr(layer, 'mW'):
+                    layer.mW = np.zeros_like(layer.W)
+                    layer.mb = np.zeros_like(layer.b)
+                    layer.vW = np.zeros_like(layer.W)
+                    layer.vb = np.zeros_like(layer.b)
+                    if layer.use_rmsnorm:
+                        layer.mgamma = np.zeros_like(layer.gamma)
+                        layer.vgamma = np.zeros_like(layer.gamma)
+                    
+                layer.mW = beta1 * layer.mW + (1 - beta1) * grad_W
+                layer.mb = beta1 * layer.mb + (1 - beta1) * grad_b
+                
+                layer.vW = beta2 * layer.vW + (1 - beta2) * (grad_W ** 2)
+                layer.vb = beta2 * layer.vb + (1 - beta2) * (grad_b ** 2)
+                
+                mW_hat = layer.mW / (1 - beta1 ** self.t)
+                mb_hat = layer.mb / (1 - beta1 ** self.t)
+                
+                vW_hat = layer.vW / (1 - beta2 ** self.t)
+                vb_hat = layer.vb / (1 - beta2 ** self.t)
+                
+                layer.W -= learning_rate * mW_hat / (np.sqrt(vW_hat) + epsilon)
+                layer.b -= learning_rate * mb_hat / (np.sqrt(vb_hat) + epsilon)
+                
+                if layer.use_rmsnorm:
+                    layer.mgamma = beta1 * layer.mgamma + (1 - beta1) * layer.dgamma
+                    layer.vgamma = beta2 * layer.vgamma + (1 - beta2) * (layer.dgamma ** 2)
+                    mgamma_hat = layer.mgamma / (1 - beta1 ** self.t)
+                    vgamma_hat = layer.vgamma / (1 - beta2 ** self.t)
+                    layer.gamma -= learning_rate * mgamma_hat / (np.sqrt(vgamma_hat) + epsilon)
+            else:
+                # Update: W_new = W_old - alpha * grad
+                layer.W -= learning_rate * grad_W
+                layer.b -= learning_rate * grad_b
+                if layer.use_rmsnorm:
+                    layer.gamma -= learning_rate * layer.dgamma
 
 
 
@@ -244,7 +315,7 @@ class FFNN:
     def initialize_weights(self, method='uniform', seed=None, **kwargs):
         """
         Melakukan inisialisasi bobot dan bias untuk seluruh layer[cite: 21].
-        method: 'zero', 'uniform', atau 'normal'[cite: 23, 24, 27].
+        method: 'zero', 'uniform', 'normal', 'xavier', atau 'he'.
         """
         for i, layer in enumerate(self.layers):
             # Tentukan dimensi: (jumlah_input, jumlah_neuron) [cite: 11]
@@ -270,3 +341,13 @@ class FFNN:
                 var = kwargs.get('variance', 0.01)
                 layer.W = Initializer.normal_initialization(shape, mean, var, seed)
                 layer.b = Initializer.normal_initialization((1, n_out), mean, var, seed)
+            elif method == 'xavier':
+                layer.W = Initializer.xavier_initialization(shape, n_in, n_out, seed)
+                layer.b = Initializer.zero_initialization((1, n_out)) # Biasanya bias diinisialisasi 0
+            elif method == 'he':
+                layer.W = Initializer.he_initialization(shape, n_in, seed)
+                layer.b = Initializer.zero_initialization((1, n_out)) # Biasanya bias diinisialisasi 0
+
+            # Inisialisasi gamma untuk RMSNorm jika aktif
+            if layer.use_rmsnorm:
+                layer.gamma = np.ones((1, n_out))

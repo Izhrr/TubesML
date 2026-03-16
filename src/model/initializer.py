@@ -20,3 +20,21 @@ class Initializer:
             np.random.seed(seed)
         std_dev = np.sqrt(variance)
         return np.random.normal(mean, std_dev, shape)
+
+    @staticmethod
+    def xavier_initialization(shape, n_in, n_out, seed=None):
+        """Inisialisasi Xavier (Glorot) untuk aktivasi seperti Sigmoid atau Tanh."""
+        if seed is not None:
+            np.random.seed(seed)
+        # Xavier Normal: mean=0, variance=2 / (n_in + n_out)
+        std_dev = np.sqrt(2.0 / (n_in + n_out))
+        return np.random.normal(0.0, std_dev, shape)
+
+    @staticmethod
+    def he_initialization(shape, n_in, seed=None):
+        """Inisialisasi He untuk aktivasi berbasis ReLU."""
+        if seed is not None:
+            np.random.seed(seed)
+        # He Normal: mean=0, variance=2 / n_in
+        std_dev = np.sqrt(2.0 / n_in)
+        return np.random.normal(0.0, std_dev, shape)

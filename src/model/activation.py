@@ -43,3 +43,22 @@ class Activations:
     def softmax_derivative(x):
         s = Activations.softmax(x)
         return s * (1 - s)
+
+    @staticmethod
+    def leaky_relu(x, alpha=0.01):
+        return np.where(x > 0, x, alpha * x)
+
+    @staticmethod
+    def leaky_relu_derivative(x, alpha=0.01):
+        return np.where(x > 0, 1.0, alpha)
+
+    @staticmethod
+    def swish(x):
+        return x * Activations.sigmoid(x)
+
+    @staticmethod
+    def swish_derivative(x):
+        # f(x) = x * sigmoid(x)
+        # f'(x) = sigmoid(x) + x * sigmoid(x) * (1 - sigmoid(x))
+        s = Activations.sigmoid(x)
+        return s + x * s * (1 - s)
