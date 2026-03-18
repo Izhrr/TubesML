@@ -26,7 +26,6 @@ class Initializer:
         """Inisialisasi Xavier (Glorot) untuk aktivasi seperti Sigmoid atau Tanh."""
         if seed is not None:
             np.random.seed(seed)
-        # Xavier Normal: mean=0, variance=2 / (n_in + n_out)
         std_dev = np.sqrt(2.0 / (n_in + n_out))
         return np.random.normal(0.0, std_dev, shape)
 
@@ -35,6 +34,5 @@ class Initializer:
         """Inisialisasi He untuk aktivasi berbasis ReLU."""
         if seed is not None:
             np.random.seed(seed)
-        # He Normal: mean=0, variance=2 / n_in
         std_dev = np.sqrt(2.0 / n_in)
         return np.random.normal(0.0, std_dev, shape)

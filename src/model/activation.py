@@ -58,7 +58,5 @@ class Activations:
 
     @staticmethod
     def swish_derivative(x):
-        # f(x) = x * sigmoid(x)
-        # f'(x) = sigmoid(x) + x * sigmoid(x) * (1 - sigmoid(x))
         s = Activations.sigmoid(x)
         return s + x * s * (1 - s)

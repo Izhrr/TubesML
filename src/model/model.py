@@ -15,11 +15,9 @@ class Layer:
         self.activation_name = activation_name.lower()
         self.use_rmsnorm = use_rmsnorm
 
-        # Inisialisasi placeholder untuk bobot dan bias 
         self.W = None 
         self.b = None
         
-        # Placeholder untuk gradien 
         self.dW = None
         self.db = None
         
@@ -27,7 +25,6 @@ class Layer:
             self.gamma = None
             self.dgamma = None
             
-        # Cache untuk menyimpan nilai selama forward pass
         self.input_cache = None
         self.net_cache = None
         self.output_cache = None
@@ -41,7 +38,6 @@ class Layer:
         """Hitung output = f(Wx + b) atau f(RMSNorm(Wx + b))"""
         self.input_cache = x
         
-        # Linear transformation: net = Wx + b
         self.net_cache = np.dot(x, self.W) + self.b
         
         activation_func = getattr(Activations, self.activation_name)
@@ -61,7 +57,7 @@ class FFNN:
     def __init__(self, loss_name, regularization_type=None, lam=0, optimizer='sgd'):
         self.layers = []
         self.loss_name = loss_name.lower()
-        self.regularization_type = regularization_type # 'l1', 'l2', None
+        self.regularization_type = regularization_type
         self.lam = lam
         self.optimizer = optimizer.lower()
         self.t = 0
@@ -82,33 +78,25 @@ class FFNN:
         Backpropagation untuk menghitung gradien (dW dan db) 
         pada setiap layer.
         """
-        # Hitung delta untuk output layer
-        # dE/do (Turunan Loss)
         loss_derivative_func = getattr(Loss, f"{self.loss_name}_derivative")
         error_signal = loss_derivative_func(y_true, y_pred)
         
-        # Iterasi mundur melalui layers
         for i in reversed(range(len(self.layers))):
             layer = self.layers[i]
             
-            # Hitung input ke fungsi aktivasi
             pre_activation = layer.scaled_cache if layer.use_rmsnorm else layer.net_cache
             
-            # dO/dNet (Turunan Aktivasi)
             activation_deriv_func = getattr(Activations, f"{layer.activation_name}_derivative")
             da_dnet = activation_deriv_func(pre_activation)
             
-            # Hitung Delta (Error Term)
             if i == len(self.layers) - 1:
                 # Output Layer case
                 delta_forward = error_signal * da_dnet
             else:
-                # Hidden Layer case: delta dari layer depannya
                 next_layer = self.layers[i+1]
                 delta_forward = np.dot(delta_next, next_layer.W.T) * da_dnet
 
             if layer.use_rmsnorm:
-                # Backpropagate melalui RMSNorm
                 layer.dgamma = np.sum(delta_forward * layer.norm_cache, axis=0, keepdims=True)
                 dnorm = delta_forward * layer.gamma
                 delta = (1.0 / layer.rms) * (dnorm - layer.norm_cache * np.mean(dnorm * layer.norm_cache, axis=-1, keepdims=True))
@@ -288,7 +276,6 @@ class FFNN:
         plt.tight_layout()
         plt.show()
 
-        # Grafik terpisah per layer
         for idx in layer_indices:
             layer = self.layers[idx]
             grads = np.concatenate([layer.dW.flatten(), layer.db.flatten()])
@@ -346,6 +333,5 @@ class FFNN:
                 layer.W = Initializer.he_initialization(shape, n_in, seed)
                 layer.b = Initializer.zero_initialization((1, n_out)) 
 
-            # Inisialisasi gamma untuk RMSNorm (jika aktif)
             if layer.use_rmsnorm:
                 layer.gamma = np.ones((1, n_out))
