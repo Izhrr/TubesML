@@ -30,7 +30,7 @@ Struktur utama:
 
 	TubesML/
 	|- doc/
-    |  |- Laporan Tugas Besar 1 Machine Learning - AlphaAziz
+    |  |- AlphaAziz_Tugas Besar Machine Learning 1
 	|- src/
 	|  |- data/
 	|  |  |- datasetml_2026.csv
@@ -108,7 +108,7 @@ Contoh setup di Windows PowerShell:
 	python -m venv .venv
 	.\.venv\Scripts\Activate.ps1
 	python -m pip install --upgrade pip
-	pip install numpy pandas matplotlib seaborn scikit-learn tqdm jupyter ipykernel
+	pip install -r requirements.txt
 
 Catatan:
 - Jika eksekusi notebook memakai kernel lain, pastikan dependensi terpasang di kernel tersebut.
