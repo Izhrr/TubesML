@@ -46,7 +46,7 @@ Struktur utama:
 
 ## Fitur Implementasi FFNN
 
-Implementasi inti ada pada src/model/model.py dengan komponen berikut.
+Implementasi ada pada src/model/model.py dengan komponen berikut.
 
 1. Arsitektur fleksibel
 - Jumlah layer bisa ditentukan sendiri melalui add_layer.
@@ -188,8 +188,8 @@ Contoh ringkas pemakaian model dari kode Python:
 
 ## Pembagian Tugas
 
-| Anggota | Fokus Utama | Detail Kontribusi |
-| --- | --- | --- |
-| Izhar Alif Akbar (18223129) | Arsitektur inti model dan struktur notebook | Menyusun setup kerangka awal proyek model, merancang struktur kelas serta alur komputasi FFNN hingga implementasi model utama siap dipakai untuk eksperimen. Menyusun struktur utama notebook pengujian agar alur analisis sistematis dan mudah dijalankan ulang. Berkontribusi pada penulisan, perapihan, dan finalisasi laporan. |
-| Harfhan Ikhtiar Ahmad Ridzky (18223123) | Pengembangan model lanjutan, bonus, dan penyempurnaan eksperimen | Membantu implementasi komponen FFNN pada tahap pengembangan lanjutan, mengerjakan bagian bonus sesuai ketentuan tugas, serta mendukung penyempurnaan notebook dari sisi kelengkapan eksperimen dan konsistensi hasil. Berkontribusi pada penyusunan serta revisi laporan. |
-| Leonard Arif Sutiono (1823120) | Pengembangan model lanjutan, bonus, dan penyempurnaan eksperimen | Membantu implementasi komponen FFNN pada tahap pengembangan lanjutan, mengerjakan bagian bonus sesuai ketentuan tugas, serta mendukung penyempurnaan notebook dari sisi kualitas analisis, visualisasi, dan kerapihan presentasi hasil. Berkontribusi pada penyusunan serta revisi laporan. |
+| Anggota | Detail Kontribusi |
+| --- | --- |
+| Izhar Alif Akbar (18223129) | Mengimplementasikan struktur utama model FFNN (arsitektur layer, forward propagation, backward propagation, dan alur training mini-batch). Mengimplementasikan komponen inti sesuai spesifikasi (fungsi aktivasi dan loss, inisialisasi bobot, regularisasi, visualisasi distribusi bobot/gradien, serta save/load model). Mengimplementasikan struktur utama notebook pengujian dan pipeline eksperimen. Menulis laporan. Melakukan analisis pada notebook|
+| Harfhan Ikhtiar Ahmad Ridzky (18223123) | Mengimplementasikan struktur utama model FFNN (forward propagation, backward propagation, dan alur training mini-batch). Melakukan Analisis pada Notebook. Menulis Laporan |
+| Leonard Arif Sutiono (1823120) | Mengimplementasikan Leaky ReLU, Swish. Mengimplementasikan Xavier initialization dan He initialization. Mengimplementasikan metode normalisasi RMSNorm. Mengimplementasikan optimizer Adam. Melakukan Analisis pada Notebook. Menulis Laporan |
