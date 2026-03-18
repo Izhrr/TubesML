@@ -82,7 +82,7 @@ class FFNN:
         Backpropagation untuk menghitung gradien (dW dan db) 
         pada setiap layer.
         """
-        # 1. Hitung delta untuk output layer
+        # Hitung delta untuk output layer
         # dE/do (Turunan Loss)
         loss_derivative_func = getattr(Loss, f"{self.loss_name}_derivative")
         error_signal = loss_derivative_func(y_true, y_pred)
@@ -115,7 +115,7 @@ class FFNN:
             else:
                 delta = delta_forward
             
-            # 2. Hitung gradien Bobot (dW) dan Bias (db)
+            # Hitung gradien Bobot (dW) dan Bias (db)
 
             # dW = delta * input (transpose untuk batch processing)
             layer.dW = np.dot(layer.input_cache.T, delta)
@@ -223,7 +223,7 @@ class FFNN:
                     val_loss=f"{val_loss:.4f}"
                 )
             
-            # 4. Verbose output
+            # Verbose output
             if verbose == 1:
                 print(f"Epoch {epoch+1}/{epochs} - loss: {train_loss:.4f} - val_loss: {val_loss:.4f}")
 
@@ -314,18 +314,16 @@ class FFNN:
         
     def initialize_weights(self, method='uniform', seed=None, **kwargs):
         """
-        Melakukan inisialisasi bobot dan bias untuk seluruh layer[cite: 21].
+        Melakukan inisialisasi bobot dan bias untuk seluruh layer.
         method: 'zero', 'uniform', 'normal', 'xavier', atau 'he'.
         """
         for i, layer in enumerate(self.layers):
-            # Tentukan dimensi: (jumlah_input, jumlah_neuron) [cite: 11]
-            # Kita perlu tahu n_input dari layer sebelumnya atau parameter input_dim
             if i == 0:
                 n_in = kwargs.get('input_dim')
             else:
                 n_in = self.layers[i-1].W.shape[1]
                 
-            n_out = layer.n_output # Diambil dari atribut layer
+            n_out = layer.n_output
             shape = (n_in, n_out)
 
             if method == 'zero':
@@ -343,11 +341,11 @@ class FFNN:
                 layer.b = Initializer.normal_initialization((1, n_out), mean, var, seed)
             elif method == 'xavier':
                 layer.W = Initializer.xavier_initialization(shape, n_in, n_out, seed)
-                layer.b = Initializer.zero_initialization((1, n_out)) # Biasanya bias diinisialisasi 0
+                layer.b = Initializer.zero_initialization((1, n_out))
             elif method == 'he':
                 layer.W = Initializer.he_initialization(shape, n_in, seed)
-                layer.b = Initializer.zero_initialization((1, n_out)) # Biasanya bias diinisialisasi 0
+                layer.b = Initializer.zero_initialization((1, n_out)) 
 
-            # Inisialisasi gamma untuk RMSNorm jika aktif
+            # Inisialisasi gamma untuk RMSNorm (jika aktif)
             if layer.use_rmsnorm:
                 layer.gamma = np.ones((1, n_out))
